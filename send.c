@@ -36,7 +36,7 @@ void get_filename(char* name, const char* pth){
 
 
 
-void send_content(int s_fd, const char * split, char* content_type, FILE* fp, char* filename);
+void send_content(int s_fd, FILE* fp, char* filename);
 
 
 
@@ -69,7 +69,9 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     fprintf(stdout, "==============================================\n");
 
 
-    const char* split = "qwertyuiopasdfghjklzxcvbnm";
+    const char* split_mixed = "qwertyuiopasdfghjklzxcvbnm";
+    const char* split_alternative = "mnbvcxzlkjhgfdsapoiuytrewq";
+
 
 
     // Get IP from domain name
@@ -209,7 +211,7 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     pbuf += strlen(pbuf);
     pbuf = mystrcpy(pbuf, strchr(receiver, '@'));
     pbuf = mystrcpy(pbuf, ">\nContent-Type: multipart/mixed; boundary=");
-    pbuf = mystrcpy(pbuf, split);
+    pbuf = mystrcpy(pbuf, split_mixed);
     pbuf = mystrcpy(pbuf, "\nSubject: ");
     pbuf = mystrcpy(pbuf, subject);
     pbuf = mystrcpy(pbuf, "\n\n");
@@ -227,7 +229,24 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
             perror("fopen");
             exit(EXIT_FAILURE);
         }
-        send_content(s_fd, split, "text/plan", fmsg, filename);
+        pbuf = mystrcpy(buf, "--");
+        pbuf = mystrcpy(pbuf, split_mixed);
+        pbuf = mystrcpy(pbuf, "\nContent-Type: multipart/alternative;");
+        pbuf = mystrcpy(pbuf, "boundary=");
+        pbuf = mystrcpy(pbuf, split_alternative);
+        pbuf = mystrcpy(pbuf, ";\n\n");
+        pbuf = mystrcpy(pbuf, "--");
+        pbuf = mystrcpy(pbuf, split_alternative);
+        pbuf = mystrcpy(pbuf, "\nContent-Type: text/plain;\nContent-Transfer-Encoding: base64\n\n");
+
+        send(s_fd, buf, pbuf-buf, 0);
+        fprintf(stdout, "%s", buf);
+        send_content(s_fd, fmsg, filename);
+
+        pbuf = mystrcpy(buf, "--");
+        pbuf = mystrcpy(pbuf, split_alternative);
+        pbuf = mystrcpy(pbuf, "--\n\n");
+
         free(filename);
         fclose(fmsg);
     }
@@ -242,13 +261,20 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
             exit(EXIT_FAILURE);
         }
         
-        send_content(s_fd, split, "application/zip", fp, filename);
+        pbuf = mystrcpy(buf, "--");
+        pbuf = mystrcpy(pbuf, split_mixed);
+        pbuf = mystrcpy(pbuf, "\nContent-Type: application/octet-stream;name=");
+        pbuf = mystrcpy(pbuf, filename);
+        pbuf = mystrcpy(pbuf, "\nContent-Transfer-Encoding: base64\n\n");
+        send(s_fd, buf, pbuf-buf, 0);
+        fprintf(stdout, "%s", buf);
+        send_content(s_fd, fp, filename);
         fclose(fp);
         free(filename);
     }
     pbuf = mystrcpy(buf, "--");
-    pbuf = mystrcpy(pbuf, split);
-    pbuf = mystrcpy(pbuf, "\n");
+    pbuf = mystrcpy(pbuf, split_mixed);
+    pbuf = mystrcpy(pbuf, "--\n");
     send(s_fd, buf, (pbuf-buf), 0);
     fprintf(stdout, "%s\n", buf);
 
@@ -326,18 +352,8 @@ int main(int argc, char* argv[])
 }
 
 
-void send_content(int s_fd, const char * split, char* content_type, FILE* fp, char* filename){
+void send_content(int s_fd, FILE* fp, char* filename){
     char* pbuf;
-    pbuf = mystrcpy(buf, "--");
-    pbuf = mystrcpy(pbuf, split);
-    pbuf = mystrcpy(pbuf, "\nContent-Type: ");
-    pbuf = mystrcpy(pbuf, content_type);
-    pbuf = mystrcpy(pbuf, ";name=\"");
-    pbuf = mystrcpy(pbuf, filename);
-    pbuf = mystrcpy(pbuf, "\"\nContent-Transfer-Encoding: base64\n\n");
-    send(s_fd, buf, (pbuf-buf), 0);
-    fprintf(stdout, "%s", buf);
-
     FILE * encode_fp = fopen("./.encode_temp.txt", "w+");
     if(encode_fp == NULL){
         perror("encode fopen:");
