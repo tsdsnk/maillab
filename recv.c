@@ -11,12 +11,26 @@
 
 char buf[MAX_SIZE+1];
 
+
+char * mystrcpy(char * dst, const char * src){
+    while(*src != '\0'){
+        *dst = *src;
+        dst++;
+        src++;
+    }
+    *dst = '\0';
+    return dst;
+}
+
+void print_mail(int s_fd,int index);
+
+
 void recv_mail()
 {
-    const char* host_name = ""; // TODO: Specify the mail server domain name
+    const char* host_name = "pop3.163.com"; // TODO: Specify the mail server domain name
     const unsigned short port = 110; // POP3 server port
-    const char* user = ""; // TODO: Specify the user
-    const char* pass = ""; // TODO: Specify the password
+    const char* user = "netlab123456789@163.com"; // TODO: Specify the user
+    const char* pass = "IQPEECDKWNKIIKGB"; // TODO: Specify the password
     char dest_ip[16];
     int s_fd; // socket file descriptor
     struct hostent *host;
@@ -38,6 +52,20 @@ void recv_mail()
 
     // TODO: Create a socket,return the file descriptor to s_fd, and establish a TCP connection to the POP3 server
 
+    s_fd = socket(AF_INET, SOCK_STREAM, 0); 
+    
+    struct sockaddr_in addr;
+    bzero(&addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(dest_ip);
+
+    if(connect(s_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
+        perror("tcp connect");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(stdout, "connect finish\n");
+
     // Print welcome message
     if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
     {
@@ -47,15 +75,75 @@ void recv_mail()
     buf[r_size] = '\0'; // Do not forget the null terminator
     printf("%s", buf);
 
-    // TODO: Send user and password and print server response
+    char * pbuf;
 
+    // TODO: Send user and password and print server response
+    pbuf = mystrcpy(buf, "USER ");
+    pbuf = mystrcpy(pbuf, user);
+    pbuf = mystrcpy(pbuf, "\r\n");
+    send(s_fd, buf, pbuf-buf, 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(buf), buf);
+
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
+
+    pbuf = mystrcpy(buf, "PASS ");
+    pbuf = mystrcpy(pbuf, pass);
+    pbuf = mystrcpy(pbuf, "\r\n");
+    send(s_fd, buf, pbuf-buf, 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(buf), buf);
+
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
+    
     // TODO: Send STAT command and print server response
+    const char* STAT = "STAT\r\n";
+    send(s_fd, STAT, strlen(STAT), 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(STAT), STAT);
+
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
 
     // TODO: Send LIST command and print server response
+    const char* LIST = "LIST\r\n";
+    send(s_fd, LIST, strlen(LIST), 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(LIST), LIST);
 
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
     // TODO: Retrieve the first mail and print its content
-
+    print_mail(s_fd, 1);
     // TODO: Send QUIT command and print server response
+    const char* QUIT = "QUIT\r\n";
+    send(s_fd, QUIT, strlen(QUIT), 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(QUIT), QUIT);
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
 
     close(s_fd);
 }
@@ -64,4 +152,21 @@ int main(int argc, char* argv[])
 {
     recv_mail();
     exit(0);
+}
+
+
+void print_mail(int s_fd,int index){
+    char* pbuf;
+    pbuf = mystrcpy(buf, "RETR ");
+    sprintf(pbuf, "%d\r\n", index);
+    send(s_fd, buf, strlen(buf), 0);
+    fprintf(stdout, ">>>(%ld) %s", strlen(buf), buf);
+    int r_size;
+    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+    {
+        perror("recv");
+        exit(EXIT_FAILURE);
+    }
+    buf[r_size] = '\0'; 
+    fprintf(stdout, "<<<(%ld) %s", strlen(buf), buf);
 }
