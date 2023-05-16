@@ -25,6 +25,20 @@ char * mystrcpy(char * dst, const char * src){
     return dst;
 }
 
+void get_filename(char* name, const char* pth){
+    char* p = strrchr(pth, '/');
+    if(p == NULL){
+        strcpy(name, pth);
+    }else{
+        strcpy(name, p+1);
+    }
+}
+
+
+
+void send_content(int s_fd, const char * split, char* content_type, FILE* fp, char* filename);
+
+
 
 
 
@@ -49,9 +63,15 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     int r_size;
 
     int conn_fd;
-    const char* mail_server = "220.181.15.161";
 
-    fprintf(stdout, ">>> hostname:%s\n", host_name);
+    fprintf(stdout, "================= send begin =================\n");
+    fprintf(stdout, "receiver: %s\nsubject: %s\nmsg: %s\natt_path: %s\n", receiver, subject, msg, att_path);
+    fprintf(stdout, "==============================================\n");
+
+
+    const char* split = "qwertyuiopasdfghjklzxcvbnm";
+
+
     // Get IP from domain name
     if ((host = gethostbyname(host_name)) == NULL)
     {
@@ -65,6 +85,7 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
         ++i;
     strcpy(dest_ip, inet_ntoa(*addr_list[i-1]));
 
+    fprintf(stdout, "dest_ip %s\n", dest_ip);
     // TODO: Create a socket, return the file descriptor to s_fd, and establish a TCP connection to the mail server
     s_fd = socket(AF_INET, SOCK_STREAM, 0); 
     
@@ -72,13 +93,13 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(mail_server);
+    addr.sin_addr.s_addr = inet_addr(dest_ip);
 
     if(conn_fd = connect(s_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
         perror("tcp connect");
         exit(EXIT_FAILURE);
     }
-    
+    fprintf(stdout, "connect finish\n");
     // Print welcome message
     if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
     {
@@ -89,76 +110,93 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     printf("%s", buf);
 
     // Send EHLO command and print server response
-    const char* EHLO = "EHLO 163.com"; // TODO: Enter EHLO command here
+    const char* EHLO = "EHLO 163.com\r\n"; // TODO: Enter EHLO command here
     
     send(s_fd, EHLO, strlen(EHLO), 0);
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(EHLO), EHLO);
     // TODO: Print server response to EHLO command
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: ELHO");
         exit(EXIT_FAILURE);
     }
     buf[r_size] = '\0';
-    printf("%s", buf);
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
 
 
     // TODO: Authentication. Server response should be printed out.
     const char* AUTH = "AUTH login\r\n";
     send(s_fd, AUTH, strlen(AUTH), 0);
-
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(AUTH), AUTH);
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: AUTH");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
+
 
     char* encode_user = encode_str(user);
-    strcpy(buf, encode_user);
-    strcat(buf, "\r\n");
-    send(s_fd, buf, strlen(buf), 0);
+    send(s_fd, encode_user, strlen(encode_user), 0);
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(encode_user), encode_user);
     free(encode_user);
 
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: AUTH");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
+
 
     char* encode_pass = encode_str(pass);
-    strcpy(buf, encode_user);
-    strcat(buf, "\r\n");
-    send(s_fd, buf, strlen(buf), 0);
+    send(s_fd, encode_pass, strlen(encode_pass), 0);
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(encode_pass), encode_pass);
     free(encode_pass);
 
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: AUTH");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
 
     // TODO: Send MAIL FROM command and print server response
     strcpy(buf, "MAIL FROM:<");
     strcat(buf, user);
     strcat(buf, ">\r\n");
     send(s_fd, buf, strlen(buf), 0);
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(buf), buf);
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: MAIL FROM");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
 
     // TODO: Send RCPT TO command and print server response
     strcpy(buf, "RCPT TO:<");
     strcat(buf, receiver);
     strcat(buf, ">\r\n");
     send(s_fd, buf, strlen(buf), 0);
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(buf), buf);
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: RCPT TO");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
     // TODO: Send DATA command and print server response
 
     const char* DATA = "DATA\r\n";
-    send(s_fd, buf, strlen(buf), 0);
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    send(s_fd, DATA, strlen(DATA), 0);
+    fprintf(stdout, ">>>(%ld) %s\n", strlen(DATA), DATA);
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: DATA");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n", strlen(buf), buf);
+
 
     // TODO: Send message data
     char * pbuf;
@@ -170,57 +208,69 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     sprintf(pbuf, "%ld", time((time_t *)NULL));
     pbuf += strlen(pbuf);
     pbuf = mystrcpy(pbuf, strchr(receiver, '@'));
-    pbuf = mystrcpy(pbuf, ">\nContent-Type: multipart/mixed; boundary=qwertyuiopasdfghjklzxcvbnm\nSubject: ");
+    pbuf = mystrcpy(pbuf, ">\nContent-Type: multipart/mixed; boundary=");
+    pbuf = mystrcpy(pbuf, split);
+    pbuf = mystrcpy(pbuf, "\nSubject: ");
     pbuf = mystrcpy(pbuf, subject);
     pbuf = mystrcpy(pbuf, "\n\n");
-
+    
     send(s_fd, buf, (pbuf - buf), 0);
-    send(s_fd, msg, strlen(msg), 0);
-    pbuf = mystrcpy(buf, "\n\n--qwertyuiopasdfghjklzxcvbnm\nContent-Type: ");
-    char * fname = strrchr(att_path, '/');
-    if(fname){
-        pbuf = mystrcpy(pbuf, fname);
+    fprintf(stdout, "%s", buf);
+
+
+    char *filename;
+    if(msg != NULL){
+        filename = malloc((strlen(msg)+1)*sizeof(char));
+        get_filename(filename, msg);
+        FILE * fmsg = fopen(msg, "r");
+        if(fmsg == NULL){
+            perror("fopen");
+            exit(EXIT_FAILURE);
+        }
+        send_content(s_fd, split, "text/plan", fmsg, filename);
+        free(filename);
+        fclose(fmsg);
     }
-    else{
-        pbuf = mystrcpy(pbuf, att_path);
+
+    if(att_path != NULL){
+
+        filename = malloc((strlen(att_path)+1)*sizeof(char));
+        get_filename(filename, att_path);
+        FILE * fp = fopen(att_path, "r");
+        if(fp == NULL){
+            perror("fopen");
+            exit(EXIT_FAILURE);
+        }
+        
+        send_content(s_fd, split, "application/zip", fp, filename);
+        fclose(fp);
+        free(filename);
     }
+    pbuf = mystrcpy(buf, "--");
+    pbuf = mystrcpy(pbuf, split);
     pbuf = mystrcpy(pbuf, "\n");
-    send(s_fd, buf, (pbuf - buf), 0);
-
-    FILE * fp = fopen(att_path, "r");
-    if(fp == NULL){
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
-    FILE * encode_fp = fopen("./.encode_temp.txt", "w+");
-    if(fp == NULL){
-        perror("encode fopen");
-        exit(EXIT_FAILURE);
-    }
-    encode_file(fp, encode_fp);
-    fclose(fp);
-    rewind(encode_fp);
-    while(fgets(buf, MAX_SIZE, encode_fp) != NULL){
-        send(s_fd, buf, strlen(buf), 0);
-    }
-    fclose(encode_fp);
-    const char* end_split = "\n--qwertyuiopasdfghjklzxcvbnm\r\n";
-    send(s_fd, end_split, strlen(end_split), 0);
+    send(s_fd, buf, (pbuf-buf), 0);
+    fprintf(stdout, "%s\n", buf);
 
 
     
     // TODO: Message ends with a single period
     send(s_fd, end_msg, strlen(end_msg), 0);
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: DATA");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n",strlen(buf), buf);
     // TODO: Send QUIT command and print server response
-    send(s_fd, "QUIT", strlen("QUIT"), 0);
-    if(r_size = recv(s_fd, buf, MAX_SIZE, 0) == -1){
+    send(s_fd, "QUIT\r\n", strlen("QUIT\r\n"), 0);
+
+    if((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1){
         perror("recv: QUIT");
         exit(EXIT_FAILURE);
     }
+    buf[r_size] = '\0';
+    fprintf(stdout, "<<<(%ld) %s\n",strlen(buf), buf);
     close(s_fd);
 }
 
@@ -273,4 +323,34 @@ int main(int argc, char* argv[])
         send_mail(recipient, s_arg, m_arg, a_arg);
         exit(0);
     }
+}
+
+
+void send_content(int s_fd, const char * split, char* content_type, FILE* fp, char* filename){
+    char* pbuf;
+    pbuf = mystrcpy(buf, "--");
+    pbuf = mystrcpy(pbuf, split);
+    pbuf = mystrcpy(pbuf, "\nContent-Type: ");
+    pbuf = mystrcpy(pbuf, content_type);
+    pbuf = mystrcpy(pbuf, ";name=\"");
+    pbuf = mystrcpy(pbuf, filename);
+    pbuf = mystrcpy(pbuf, "\"\nContent-Transfer-Encoding: base64\n\n");
+    send(s_fd, buf, (pbuf-buf), 0);
+    fprintf(stdout, "%s", buf);
+
+    FILE * encode_fp = fopen("./.encode_temp.txt", "w+");
+    if(encode_fp == NULL){
+        perror("encode fopen:");
+        exit(EXIT_FAILURE);
+    }
+    encode_file(fp, encode_fp);
+    rewind(encode_fp);
+
+    while(fgets(buf, MAX_SIZE, encode_fp) !=NULL){      
+        send(s_fd, buf, strlen(buf), 0);
+        fprintf(stdout, "%s", buf);
+    }
+    fclose(encode_fp);
+    send(s_fd, "\n\n", strlen("\n\n"), 0);
+    fprintf(stdout, "\n\n");
 }
