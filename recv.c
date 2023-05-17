@@ -148,7 +148,7 @@ void recv_mail()
         exit(EXIT_FAILURE);
     }
     buf[r_size] = '\0'; 
-    fprintf(stdout, "<<<%ld) %s", strlen(buf), buf);
+    fprintf(stdout, "<<<(%ld) %s", strlen(buf), buf);
 
     close(s_fd);
 }
@@ -172,11 +172,22 @@ void print_mail(int s_fd,int index){
     fprintf(stdout, ">>>(%ld) %s", strlen(buf), buf);
     // 打印返回报文
     int r_size;
-    if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
-    {
-        perror("recv");
-        exit(EXIT_FAILURE);
+    while(1){
+        if ((r_size = recv(s_fd, buf, MAX_SIZE, 0)) == -1)
+        {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        buf[r_size] = '\0'; 
+        fprintf(stdout, "<<<(%ld) %s", strlen(buf), buf);
+        // 检查是否数据完全发送
+        const char* end_str = "\r\n.\r\n";
+        if(strstr(buf, end_str) != NULL){
+            break;
+        }
     }
-    buf[r_size] = '\0'; 
-    fprintf(stdout, "<<<(%ld) %s", strlen(buf), buf);
+    
+   
+    
+    
 }
