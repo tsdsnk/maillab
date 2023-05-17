@@ -31,7 +31,7 @@ void recv_mail()
     const char* host_name = "pop3.163.com"; // TODO: Specify the mail server domain name
     const unsigned short port = 110; // POP3 server port
     const char* user = "netlab123456789@163.com"; // TODO: Specify the user
-    const char* pass = "****"; // TODO: Specify the password
+    const char* pass = "IQPEECDKWNKIIKGB"; // TODO: Specify the password
     char dest_ip[16];
     int s_fd; // socket file descriptor
     struct hostent *host;
