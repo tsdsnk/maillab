@@ -185,9 +185,5 @@ void print_mail(int s_fd,int index){
         if(strstr(buf, end_str) != NULL){
             break;
         }
-    }
-    
-   
-    
-    
+    }  
 }
