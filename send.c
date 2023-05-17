@@ -65,7 +65,7 @@ void send_mail(const char* receiver, const char* subject, const char* msg, const
     const char* host_name = "smtp.163.com"; // TODO: Specify the mail server domain name
     const unsigned short port = 25; // SMTP server port
     const char* user = "netlab123456789@163.com"; // TODO: Specify the user
-    const char* pass = "IQPEECDKWNKIIKGB"; // TODO: Specify the password
+    const char* pass = "*****"; // TODO: Specify the password
     const char* from = "netlab123456789@163.com"; // TODO: Specify the mail address of the sender
     char dest_ip[16]; // Mail server IP address
     int s_fd; // socket file descriptor
